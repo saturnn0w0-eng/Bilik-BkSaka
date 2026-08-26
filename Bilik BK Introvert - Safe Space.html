@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bilik BK - Safe Space Introvert</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- React & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  
+  <!-- Babel compiler for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(51, 65, 85, 0.8);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(71, 85, 105, 1);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased selection:bg-teal-500 selection:text-slate-950 min-h-screen">
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // Helper Component for Lucide Icons in HTML standalone
+    const Icon = ({ name, className = "w-4 h-4", strokeWidth = 2 }) => {
+      const ref = useRef(null);
+      useEffect(() => {
+        if (window.lucide && ref.current) {
+          ref.current.innerHTML = '';
+          const i = document.createElement('i');
+          i.setAttribute('data-lucide', name);
+          if (className) i.className = className;
+          ref.current.appendChild(i);
+          window.lucide.createIcons({
+            attrs: { 'stroke-width': strokeWidth }
+          });
+        }
+      }, [name, className, strokeWidth]);
+      return <span ref={ref} className="inline-flex items-center justify-center"></span>;
+    };
+
+    function App() {
+      const [activeTab, setActiveTab] = useState('chat'); // 'chat', 'direct_bk', 'burn', 'breath', 'wall', 'guru_login', 'guru_dashboard'
+      
+      // Auth state Guru BK
+      const [isGuruLoggedIn, setIsGuruLoggedIn] = useState(false);
+      const [guruPin, setGuruPin] = useState('');
+      const [loginError, setLoginError] = useState('');
+
+      // AI Chat state
+      const [messages, setMessages] = useState([
+        {
+          sender: 'ai',
+          text: 'Halo... Selamat datang di space aman kamu. Di sini gak ada yang bakal nge-judge kamu. Kamu bebas mau cerita apa aja, atau sekadar tumpahin unek-unek yang ganjel di hati. Aku siap dengerin. Gimana harimu?',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+      const [inputMessage, setInputMessage] = useState('');
+      const [isLoading, setIsLoading] = useState(false);
+      const chatEndRef = useRef(null);
+
+      // Direct Ticket to Guru BK state
+      const [tickets, setTickets] = useState([
+        {
+          id: 'TKT-8921',
+          category: 'Kecemasan & Bullying',
+          content: 'Pak/Bu Guru, saya sering merasa takut kalau di kelas pas diminta maju presentasi. Kadang teman-teman pada ngetawain gaya bicara saya yang pelan. Saya jadi malas sekolah...',
+          status: 'replied',
+          createdAt: '25 Aug 2026, 14:20',
+          reply: 'Halo nak, terima kasih sudah berani cerita ya. Ketakutan itu wajar banget kok. Kamu gak perlu cemas berlebihan. Kalau kamu butuh teman ngobrol langsung pelan-pelan tanpa paksaan, kamu bisa menemui Bu BK di ruangan pas jam istirahat ya. Kita cari solusinya bareng-bareng.',
+          repliedAt: '25 Aug 2026, 15:10'
+        },
+        {
+          id: 'TKT-3104',
+          category: 'Pikiran Overthinking',
+          content: 'Saya ngerasa ga ada yang peduli sama saya di sekolah. Setiap ada tugas kelompok pasti saya dapet sisaan atau ga diajak.',
+          status: 'pending',
+          createdAt: '26 Aug 2026, 09:15',
+          reply: null,
+          repliedAt: null
+        }
+      ]);
+
+      const [newTicketText, setNewTicketText] = useState('');
+      const [newTicketCategory, setNewTicketCategory] = useState('Masalah Pribadi');
+      const [createdTicketId, setCreatedTicketId] = useState(null);
+      
+      // Check ticket state for student
+      const [searchTicketId, setSearchTicketId] = useState('');
+      const [foundTicket, setFoundTicket] = useState(null);
+      const [searchAttempted, setSearchAttempted] = useState(false);
+
+      // Guru reply input state
+      const [selectedTicketId, setSelectedTicketId] = useState(null);
+      const [replyText, setReplyText] = useState('');
+
+      // Burn state
+      const [burnText, setBurnText] = useState('');
+      const [isBurning, setIsBurning] = useState(false);
+      const [burned, setBurned] = useState(false);
+
+      // Breathing state
+      const [breathState, setBreathState] = useState('Inhale');
+      const [breathTimer, setBreathTimer] = useState(4);
+      const [isBreathingActive, setIsBreathingActive] = useState(false);
+
+      // Wall state
+      const [wallNotes, setWallNotes] = useState([
+        { id: 1, text: "Gak apa-apa capek, kamu udah ngelewatin hari ini dengan luar biasa.", color: "bg-indigo-900/40 border-indigo-500/30", author: "Anonim #821" },
+        { id: 2, text: "Buat kamu yang merasa gak didengerin: Kehadiranmu berharga kok.", color: "bg-teal-900/40 border-teal-500/30", author: "Anonim #104" },
+        { id: 3, text: "Pelan-pelan aja ya. Gak semua hal harus diselesaiin hari ini.", color: "bg-purple-900/40 border-purple-500/30", author: "Anonim #509" },
+      ]);
+      const [newWallNote, setNewWallNote] = useState('');
+
+      // Auto scroll chat
+      useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, [messages, isLoading]);
+
+      // Breathing timer loop
+      useEffect(() => {
+        let interval = null;
+        if (isBreathingActive) {
+          interval = setInterval(() => {
+            setBreathTimer((prev) => {
+              if (prev <= 1) {
+                if (breathState === 'Inhale') {
+                  setBreathState('Hold');
+                  return 7;
+                } else if (breathState === 'Hold') {
+                  setBreathState('Exhale');
+                  return 8;
+                } else {
+                  setBreathState('Inhale');
+                  return 4;
+                }
+              }
+              return prev - 1;
+            });
+          }, 1000);
+        } else {
+          setBreathState('Inhale');
+          setBreathTimer(4);
+        }
+        return () => clearInterval(interval);
+      }, [isBreathingActive, breathState]);
+
+      // Gemini API Integration
+      const fetchGeminiResponse = async (userPrompt) => {
+        const apiKey = ""; // Embedded env key
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+        
+        const systemInstruction = `Kamu adalah seorang Guru Bimbingan Konseling (BK) dan Konselor Sebaya yang sangat hangat, lembut, penuh empati, dan tidak menghakimi. Pengguna kamu adalah seorang introvert yang sering merasa cemas, takut di-judge, atau merasa sendirian.
+- Gunakan bahasa Indonesia yang santai, hangat, menenangkan (boleh pakai kata 'aku' dan 'kamu').
+- Berikan respon yang menenangkan dan validasi perasaan mereka.
+- Jawab dalam 2-3 paragraf singkat yang menyejukkan hati.`;
+
+        const payload = {
+          contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+          systemInstruction: { parts: [{ text: systemInstruction }] }
+        };
+
+        let retries = 5;
+        let delay = 1000;
+
+        for (let i = 0; i < retries; i++) {
+          try {
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (text) return text;
+            }
+          } catch (err) {
+            // Silence retries
+          }
+
+          if (i < retries - 1) {
+            await new Promise((res) => setTimeout(res, delay));
+            delay *= 2;
+          }
+        }
+
+        return "Maaf ya, koneksinya lagi agak kurang stabil. Tapi aku tetap di sini dengerin kamu kok. Coba ceritain lagi ya?";
+      };
+
+      const handleSendMessage = async (e) => {
+        e.preventDefault();
+        if (!inputMessage.trim() || isLoading) return;
+
+        const userText = inputMessage;
+        const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        setMessages((prev) => [
+          ...prev,
+          { sender: 'user', text: userText, time: timeNow }
+        ]);
+        setInputMessage('');
+        setIsLoading(true);
+
+        const aiAnswer = await fetchGeminiResponse(userText);
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            sender: 'ai',
+            text: aiAnswer,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }
+        ]);
+        setIsLoading(false);
+      };
+
+      const handleCreateTicket = (e) => {
+        e.preventDefault();
+        if (!newTicketText.trim()) return;
+
+        const randomId = `TKT-${Math.floor(1000 + Math.random() * 9000)}`;
+        const newTicket = {
+          id: randomId,
+          category: newTicketCategory,
+          content: newTicketText,
+          status: 'pending',
+          createdAt: new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }),
+          reply: null,
+          repliedAt: null
+        };
+
+        setTickets([newTicket, ...tickets]);
+        setCreatedTicketId(randomId);
+        setNewTicketText('');
+      };
+
+      const handleSearchTicket = (e) => {
+        e.preventDefault();
+        if (!searchTicketId.trim()) return;
+        
+        const ticket = tickets.find(t => t.id.toLowerCase() === searchTicketId.trim().toLowerCase());
+        setFoundTicket(ticket || null);
+        setSearchAttempted(true);
+      };
+
+      // Password login BkSaka
+      const handleGuruLogin = (e) => {
+        e.preventDefault();
+        if (guruPin === 'BkSaka') {
+          setIsGuruLoggedIn(true);
+          setLoginError('');
+          setActiveTab('guru_dashboard');
+          setGuruPin('');
+        } else {
+          setLoginError('Password Guru BK salah!');
+        }
+      };
+
+      const handleGuruLogout = () => {
+        setIsGuruLoggedIn(false);
+        setActiveTab('chat');
+      };
+
+      const handleSubmitGuruReply = (e) => {
+        e.preventDefault();
+        if (!replyText.trim() || !selectedTicketId) return;
+
+        setTickets(tickets.map(t => {
+          if (t.id === selectedTicketId) {
+            return {
+              ...t,
+              status: 'replied',
+              reply: replyText,
+              repliedAt: new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
+            };
+          }
+          return t;
+        }));
+
+        setReplyText('');
+        setSelectedTicketId(null);
+      };
+
+      const handleBurn = () => {
+        if (!burnText.trim()) return;
+        setIsBurning(true);
+        setTimeout(() => {
+          setIsBurning(false);
+          setBurned(true);
+          setBurnText('');
+          setTimeout(() => setBurned(false), 4000);
+        }, 2500);
+      };
+
+      const handleAddWallNote = (e) => {
+        e.preventDefault();
+        if (!newWallNote.trim()) return;
+
+        const colors = [
+          "bg-indigo-900/40 border-indigo-500/30",
+          "bg-teal-900/40 border-teal-500/30",
+          "bg-purple-900/40 border-purple-500/30",
+          "bg-rose-900/40 border-rose-500/30"
+        ];
+
+        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+        const randomId = Math.floor(Math.random() * 900) + 100;
+
+        setWallNotes([
+          { id: Date.now(), text: newWallNote, color: randomColor, author: `Anonim #${randomId}` },
+          ...wallNotes
+        ]);
+        setNewWallNote('');
+      };
+
+      return (
+        <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col justify-between">
+          
+          {/* Ambient background light */}
+          <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+            <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-900/20 rounded-full blur-3xl"></div>
+            <div className="absolute top-1/2 -right-40 w-96 h-96 bg-teal-900/20 rounded-full blur-3xl"></div>
+            <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-purple-900/20 rounded-full blur-3xl"></div>
+          </div>
+
+          {/* Navigation Header */}
+          <header className="relative z-10 border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md px-4 py-3 sm:px-8 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-gradient-to-tr from-teal-500 to-indigo-500 rounded-2xl shadow-lg shadow-teal-500/10">
+                <Icon name="feather" className="w-5 h-5 text-slate-950" strokeWidth={2.5} />
+              </div>
+              <div>
+                <h1 className="font-semibold text-lg tracking-wide text-slate-100 flex items-center gap-2">
+                  Bilik BK <span className="text-xs px-2.5 py-0.5 rounded-full bg-teal-500/10 text-teal-400 border border-teal-500/20">Safe Space</span>
+                </h1>
+                <p className="text-xs text-slate-400">Teman curhat khusus introvert, 100% rahasia & anonim.</p>
+              </div>
+            </div>
+
+            {/* Navigation Tabs */}
+            <nav className="flex items-center gap-1 bg-slate-950/70 p-1.5 rounded-xl border border-slate-800/80 overflow-x-auto max-w-full">
+              <button
+                onClick={() => setActiveTab('chat')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap ${
+                  activeTab === 'chat'
+                    ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 font-semibold'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
+                }`}
+              >
+                <Icon name="message-square" className="w-3.5 h-3.5" />
+                Curhat AI
+              </button>
+
+              <button
+                onClick={() => setActiveTab('direct_bk')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap ${
+                  activeTab === 'direct_bk'
+                    ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-slate-950 font-semibold'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
+                }`}
+              >
+                <Icon name="inbox" className="w-3.5 h-3.5" />
+                Lapor Guru BK Real
+              </button>
+
+              <button
+                onClick={() => setActiveTab('burn')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap ${
+                  activeTab === 'burn'
+                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 font-semibold'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
+                }`}
+              >
+                <Icon name="flame" className="w-3.5 h-3.5" />
+                Bakar Catatan
+              </button>
+
+              <button
+                onClick={() => setActiveTab('breath')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap ${
+                  activeTab === 'breath'
+                    ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-slate-950 font-semibold'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
+                }`}
+              >
+                <Icon name="wind" className="w-3.5 h-3.5" />
+                Latihan Napas
+              </button>
+
+              <button
+                onClick={() => setActiveTab('wall')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap ${
+                  activeTab === 'wall'
+                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-slate-950 font-semibold'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
+                }`}
+              >
+                <Icon name="heart" className="w-3.5 h-3.5" />
+                Pesan Botol
+              </button>
+
+              {/* LOGIN GURU BK BUTTON */}
+              {!isGuruLoggedIn ? (
+                <button
+                  onClick={() => setActiveTab('guru_login')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border border-teal-500/30 text-teal-400 hover:bg-teal-500/10 transition-all whitespace-nowrap ml-1 ${
+                    activeTab === 'guru_login' ? 'bg-teal-500/20 text-teal-300' : ''
+                  }`}
+                >
+                  <Icon name="user-check" className="w-3.5 h-3.5" />
+                  Portal Guru BK
+                </button>
+              ) : (
+                <button
+                  onClick={() => setActiveTab('guru_dashboard')}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 whitespace-nowrap ml-1"
+                >
+                  <Icon name="inbox" className="w-3.5 h-3.5" />
+                  Dashboard Guru ({tickets.filter(t => t.status === 'pending').length} Baru)
+                </button>
+              )}
+            </nav>
+          </header>
+
+          {/* Main Content Area */}
+          <main className="relative z-10 flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 flex flex-col">
+            
+            <div className="mb-4 bg-slate-900/40 border border-slate-800/60 rounded-xl p-3 flex items-center justify-between text-xs text-slate-400 backdrop-blur-sm">
+              <div className="flex items-center gap-2.5">
+                <Icon name="shield-check" className="w-4 h-4 text-emerald-400" />
+                <span>Semua keluhan di sini dijamin 100% anonim tanpa perlu menulis nama atau kelas.</span>
+              </div>
+              {isGuruLoggedIn && (
+                <button 
+                  onClick={handleGuruLogout}
+                  className="flex items-center gap-1 text-rose-400 hover:underline shrink-0 text-[11px]"
+                >
+                  <Icon name="log-out" className="w-3 h-3" /> Keluar Guru BK
+                </button>
+              )}
+            </div>
+
+            {/* TAB 1: CURHAT AI COUNSELOR */}
+            {activeTab === 'chat' && (
+              <div className="flex-1 flex flex-col bg-slate-900/50 backdrop-blur-lg border border-slate-800/80 rounded-2xl overflow-hidden shadow-2xl min-h-[500px]">
+                <div className="px-5 py-3.5 border-b border-slate-800/80 bg-slate-900/80 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-teal-400 to-indigo-500 flex items-center justify-center text-slate-950 font-bold text-sm">
+                        BK
+                      </div>
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-slate-900 rounded-full"></span>
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-semibold text-slate-200">Konselor BK Virtual (AI)</h2>
+                      <p className="text-[11px] text-teal-400/90 flex items-center gap-1">
+                        <Icon name="sparkles" className="w-3 h-3" /> Siap mendengarkan 24/7 tanpa di-judge
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 max-h-[58vh]">
+                  {messages.map((msg, index) => (
+                    <div
+                      key={index}
+                      className={`flex flex-col ${
+                        msg.sender === 'user' ? 'items-end' : 'items-start'
+                      }`}
+                    >
+                      <div
+                        className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                          msg.sender === 'user'
+                            ? 'bg-gradient-to-r from-teal-600 to-teal-500 text-slate-950 rounded-br-none shadow-lg font-medium'
+                            : 'bg-slate-800/80 text-slate-200 border border-slate-700/50 rounded-bl-none shadow-md'
+                        }`}
+                      >
+                        <p className="whitespace-pre-wrap">{msg.text}</p>
+                      </div>
+                      <span className="text-[10px] text-slate-500 mt-1 px-1">
+                        {msg.time}
+                      </span>
+                    </div>
+                  ))}
+
+                  {isLoading && (
+                    <div className="flex flex-col items-start">
+                      <div className="bg-slate-800/80 border border-slate-700/50 rounded-2xl rounded-bl-none px-4 py-3 text-sm flex items-center gap-2 text-slate-400">
+                        <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span>
+                        <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse delay-150"></span>
+                        <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse delay-300"></span>
+                        <span className="text-xs ml-1">Guru BK AI sedang mengetik...</span>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+
+                <form
+                  onSubmit={handleSendMessage}
+                  className="p-3 sm:p-4 border-t border-slate-800/80 bg-slate-900/90 flex items-center gap-2"
+                >
+                  <input
+                    type="text"
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    placeholder="Tulis apa saja yang ada di pikiranmu..."
+                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-teal-500/60"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isLoading || !inputMessage.trim()}
+                    className="bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 p-3 rounded-xl hover:opacity-90 disabled:opacity-40"
+                  >
+                    <Icon name="send" className="w-4 h-4" strokeWidth={2.5} />
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* TAB 2: LAPOR GURU BK REAL */}
+            {activeTab === 'direct_bk' && (
+              <div className="flex-1 flex flex-col gap-6">
+                <div className="bg-slate-900/50 backdrop-blur-lg border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-xl">
+                  <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2 mb-1">
+                    <Icon name="inbox" className="w-5 h-5 text-indigo-400" /> Kirim Pesan Rahasia ke Guru BK Sekolah
+                  </h2>
+                  <p className="text-xs text-slate-400 mb-4">
+                    Pesanmu akan dikirim langsung ke Dashboard Guru BK. Kamu akan dapat <strong>Kode Tiket</strong> khusus untuk mengecek balasan Guru tanpa perlu ngasih tau namamu!
+                  </p>
+
+                  {createdTicketId ? (
+                    <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-2xl p-5 text-center space-y-3">
+                      <Icon name="check-circle-2" className="w-10 h-10 text-emerald-400 mx-auto" />
+                      <h3 className="text-base font-semibold text-emerald-300">Pesan Berhasil Terkirim ke Guru BK!</h3>
+                      <p className="text-xs text-slate-300">Simpan <strong>Kode Tiket Rahasia</strong> kamu ini untuk mengecek tanggapan guru:</p>
+                      <div className="inline-block bg-slate-950 border border-emerald-500/50 text-emerald-400 font-mono text-xl px-6 py-2.5 rounded-xl font-bold tracking-widest select-all">
+                        {createdTicketId}
+                      </div>
+                      <div>
+                        <button
+                          onClick={() => setCreatedTicketId(null)}
+                          className="text-xs text-slate-400 hover:text-slate-200 underline mt-2"
+                        >
+                          Kirim Pesan Lain
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleCreateTicket} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-400 mb-1.5">Kategori Keluhan</label>
+                        <select
+                          value={newTicketCategory}
+                          onChange={(e) => setNewTicketCategory(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                        >
+                          <option value="Masalah Pribadi">Masalah Pribadi & Kecemasan</option>
+                          <option value="Bullying">Kekerasan / Bullying di Sekolah</option>
+                          <option value="Belajar">Kesulitan Belajar & Nilai</option>
+                          <option value="Keluarga">Masalah Rumah / Keluarga</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-slate-400 mb-1.5">Isi Pesan / Curhatan</label>
+                        <textarea
+                          value={newTicketText}
+                          onChange={(e) => setNewTicketText(e.target.value)}
+                          placeholder="Tulis apa yang kamu rasakan atau masalah yang kamu hadapi di sekolah..."
+                          rows={4}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 resize-none"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={!newTicketText.trim()}
+                        className="w-full bg-gradient-to-r from-indigo-500 to-blue-500 text-slate-950 font-semibold py-3 px-5 rounded-xl hover:opacity-90 disabled:opacity-40 transition-all text-xs flex items-center justify-center gap-2"
+                      >
+                        <Icon name="send" className="w-4 h-4" />
+                        Kirim Secara Anonim
+                      </button>
+                    </form>
+                  )}
+                </div>
+
+                <div className="bg-slate-900/50 backdrop-blur-lg border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-xl">
+                  <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2 mb-3">
+                    <Icon name="search" className="w-4 h-4 text-teal-400" /> Cek Tanggapan Guru BK (Gunakan Kode Tiket)
+                  </h3>
+                  
+                  <form onSubmit={handleSearchTicket} className="flex gap-2 mb-4">
+                    <input
+                      type="text"
+                      value={searchTicketId}
+                      onChange={(e) => setSearchTicketId(e.target.value)}
+                      placeholder="Masukkan Kode Tiket (Contoh: TKT-8921)"
+                      className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-teal-500"
+                    />
+                    <button
+                      type="submit"
+                      className="bg-teal-500 text-slate-950 font-semibold px-4 py-2 rounded-xl text-xs hover:bg-teal-400 transition-colors"
+                    >
+                      Cek Status
+                    </button>
+                  </form>
+
+                  {searchAttempted && (
+                    foundTicket ? (
+                      <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
+                        <div className="flex items-center justify-between text-xs border-b border-slate-800 pb-2">
+                          <span className="font-mono text-teal-400 font-bold">{foundTicket.id}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+                            foundTicket.status === 'replied' 
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                              : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                          }`}>
+                            {foundTicket.status === 'replied' ? 'Sudah Dibalas Guru BK' : 'Menunggu Balasan'}
+                          </span>
+                        </div>
+                        
+                        <div className="text-xs text-slate-300">
+                          <p className="text-slate-500 text-[10px] mb-1">Pesan Kamu ({foundTicket.createdAt}):</p>
+                          <p className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">{foundTicket.content}</p>
+                        </div>
+
+                        {foundTicket.reply ? (
+                          <div className="text-xs text-slate-200 mt-3 pt-3 border-t border-slate-800/80">
+                            <p className="text-teal-400 font-medium text-[11px] mb-1 flex items-center gap-1">
+                              <Icon name="user" className="w-3 h-3" /> Tanggapan Guru BK ({foundTicket.repliedAt}):
+                            </p>
+                            <p className="bg-teal-950/30 border border-teal-500/30 p-3 rounded-xl leading-relaxed text-teal-100">
+                              {foundTicket.reply}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-amber-400 italic">Pesanmu sedang ditinjau oleh Guru BK. Silakan cek berkala ya.</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-rose-400 p-3 bg-rose-950/20 border border-rose-500/20 rounded-xl text-center">
+                        Kode tiket tidak ditemukan. Pastikan kamu mengetik kode dengan benar.
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB GURU LOGIN */}
+            {activeTab === 'guru_login' && !isGuruLoggedIn && (
+              <div className="flex-1 flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-lg border border-slate-800/80 rounded-2xl p-6 min-h-[480px]">
+                <div className="max-w-sm w-full space-y-5 text-center">
+                  <div className="inline-flex p-3.5 bg-teal-500/10 rounded-2xl border border-teal-500/20 text-teal-400">
+                    <Icon name="lock" className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-100">Login Portal Guru BK</h2>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Masukan Password khusus Guru BK untuk mengakses dan membalas keluhan siswa.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleGuruLogin} className="space-y-4 text-left">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-1">Password Guru BK</label>
+                      <div className="relative">
+                        <input
+                          type="password"
+                          value={guruPin}
+                          onChange={(e) => setGuruPin(e.target.value)}
+                          placeholder="Masukkan password..."
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-teal-500"
+                        />
+                        <span className="absolute right-3.5 top-3.5 text-slate-500">
+                          <Icon name="key" className="w-4 h-4" />
+                        </span>
+                      </div>
+                    </div>
+
+                    {loginError && (
+                      <div className="p-2.5 bg-rose-950/40 border border-rose-500/30 rounded-xl text-rose-400 text-xs flex items-center gap-2">
+                        <Icon name="alert-circle" className="w-4 h-4 shrink-0" />
+                        <span>{loginError}</span>
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      className="w-full bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 font-semibold py-3 px-4 rounded-xl hover:opacity-90 transition-all text-xs"
+                    >
+                      Masuk ke Dashboard Guru BK
+                    </button>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* TAB GURU DASHBOARD */}
+            {(activeTab === 'guru_dashboard' || (activeTab === 'guru_login' && isGuruLoggedIn)) && (
+              <div className="flex-1 flex flex-col bg-slate-900/50 backdrop-blur-lg border border-slate-800/80 rounded-2xl p-5 sm:p-6 min-h-[500px]">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                      <Icon name="user-check" className="w-5 h-5 text-emerald-400" /> Dashboard Tanggapan Guru BK
+                    </h2>
+                    <p className="text-xs text-slate-400">Daftar keluhan anonim dari siswa yang masuk secara langsung.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs bg-slate-800 border border-slate-700 px-3 py-1 rounded-full text-slate-300">
+                      Total: {tickets.length} Pesan
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-4 overflow-y-auto max-h-[55vh] pr-1">
+                  {tickets.map((t) => (
+                    <div
+                      key={t.id}
+                      className={`p-4 rounded-2xl border transition-all ${
+                        t.status === 'pending'
+                          ? 'bg-slate-950/80 border-amber-500/40 shadow-lg shadow-amber-500/5'
+                          : 'bg-slate-950/40 border-slate-800'
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-indigo-400">{t.id}</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                            {t.category}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[11px]">
+                          <span className="text-slate-500 flex items-center gap-1">
+                            <Icon name="clock" className="w-3 h-3" /> {t.createdAt}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+                            t.status === 'replied'
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                              : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                          }`}>
+                            {t.status === 'replied' ? 'Selesai Dibalas' : 'Perlu Tanggapan'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-slate-200 leading-relaxed bg-slate-900/60 p-3 rounded-xl border border-slate-800/60 my-2">
+                        "{t.content}"
+                      </p>
+
+                      {t.reply ? (
+                        <div className="mt-3 pt-2 border-t border-slate-800 text-xs">
+                          <p className="text-emerald-400 font-medium text-[11px] mb-1">Tanggapan Anda ({t.repliedAt}):</p>
+                          <p className="bg-emerald-950/20 border border-emerald-500/20 p-2.5 rounded-xl text-emerald-200">
+                            {t.reply}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="mt-3 pt-2 border-t border-slate-800">
+                          {selectedTicketId === t.id ? (
+                            <form onSubmit={handleSubmitGuruReply} className="space-y-2 mt-2">
+                              <textarea
+                                value={replyText}
+                                onChange={(e) => setReplyText(e.target.value)}
+                                placeholder="Tulis tanggapan hangat & solutif untuk siswa ini..."
+                                rows={3}
+                                className="w-full bg-slate-900 border border-emerald-500/40 rounded-xl p-2.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none"
+                              />
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedTicketId(null)}
+                                  className="px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-slate-200"
+                                >
+                                  Batal
+                                </button>
+                                <button
+                                  type="submit"
+                                  disabled={!replyText.trim()}
+                                  className="bg-emerald-500 text-slate-950 font-semibold px-4 py-1.5 rounded-lg text-xs hover:bg-emerald-400 disabled:opacity-40"
+                                >
+                                  Kirim Tanggapan
+                                </button>
+                              </div>
+                            </form>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setSelectedTicketId(t.id);
+                                setReplyText('');
+                              }}
+                              className="bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-colors"
+                            >
+                              Balas Keluhan Ini
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB BAKAR CATATAN */}
+            {activeTab === 'burn' && (
+              <div className="flex-1 flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-lg border border-slate-800/80 rounded-2xl p-6 text-center relative min-h-[500px]">
+                <div className="max-w-md w-full space-y-4">
+                  <div className="inline-flex p-3 bg-orange-500/10 rounded-2xl border border-orange-500/20 text-orange-400">
+                    <Icon name="flame" className="w-7 h-7" />
+                  </div>
+                  <h2 className="text-xl font-bold text-slate-100">Pelepasan Beban (Burn & Release)</h2>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Ketik rasa cemas, kesal, atau kejenuhanmu di sini, lalu bakar hingga hangus secara virtual.
+                  </p>
+
+                  <div className="relative mt-4">
+                    <textarea
+                      value={burnText}
+                      onChange={(e) => setBurnText(e.target.value)}
+                      disabled={isBurning}
+                      placeholder="Tulis beban pikiranmu di sini..."
+                      rows={6}
+                      className={`w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none transition-all resize-none ${
+                        isBurning ? 'animate-pulse opacity-40 blur-sm' : ''
+                      }`}
+                    />
+
+                    {isBurning && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 rounded-2xl backdrop-blur-sm z-20">
+                        <Icon name="flame" className="w-16 h-16 text-orange-500 animate-bounce" />
+                        <span className="text-orange-400 text-sm font-semibold mt-2">Menghanguskan beban pikiranmu...</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {burned && (
+                    <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-xl text-emerald-400 text-xs flex items-center justify-center gap-2">
+                      <Icon name="check-circle-2" className="w-4 h-4" />
+                      <span>Catatan berhasil dibakar. Bebaskan pikiranmu pelan-pelan ya.</span>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleBurn}
+                    disabled={!burnText.trim() || isBurning}
+                    className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 font-semibold py-3 px-6 rounded-xl hover:opacity-90 disabled:opacity-40 shadow-lg flex items-center justify-center gap-2"
+                  >
+                    <Icon name="flame" className="w-4 h-4" />
+                    Bakar & Relakan
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* TAB LATIHAN NAPAS */}
+            {activeTab === 'breath' && (
+              <div className="flex-1 flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-lg border border-slate-800/80 rounded-2xl p-6 text-center min-h-[500px]">
+                <div className="max-w-md w-full flex flex-col items-center space-y-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-100">Ruang Pernapasan (4-7-8)</h2>
+                    <p className="text-xs text-slate-400 mt-1">Atur napasmu untuk meredakan rasa cemas mendadak.</p>
+                  </div>
+
+                  <div className="relative w-60 h-60 flex items-center justify-center my-2">
+                    <div
+                      className={`absolute rounded-full bg-gradient-to-tr from-indigo-500/30 to-purple-500/30 border border-indigo-400/40 transition-all duration-[4000ms] ease-in-out ${
+                        isBreathingActive
+                          ? breathState === 'Inhale'
+                            ? 'w-60 h-60 opacity-90 scale-100'
+                            : breathState === 'Hold'
+                            ? 'w-60 h-60 opacity-100 scale-105 shadow-2xl shadow-indigo-500/30'
+                            : 'w-24 h-24 opacity-40 scale-75'
+                          : 'w-40 h-40 opacity-50'
+                      }`}
+                    />
+                    
+                    <div className="relative z-10 flex flex-col items-center">
+                      <span className="text-3xl font-extrabold text-slate-100">
+                        {isBreathingActive ? breathTimer : 'Mulai?'}
+                      </span>
+                      <span className="text-xs uppercase tracking-widest text-indigo-300 font-medium mt-1">
+                        {isBreathingActive ? (
+                          breathState === 'Inhale' ? 'Tarik Napas' :
+                          breathState === 'Hold' ? 'Tahan Napas' : 'Hembuskan'
+                        ) : 'Tekan Tombol'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setIsBreathingActive(!isBreathingActive)}
+                    className={`w-full py-3 px-6 rounded-xl font-semibold text-sm transition-all ${
+                      isBreathingActive
+                        ? 'bg-slate-800 text-slate-300 border border-slate-700'
+                        : 'bg-gradient-to-r from-indigo-500 to-purple-500 text-slate-950 shadow-indigo-500/20'
+                    }`}
+                  >
+                    {isBreathingActive ? 'Hentikan Latihan' : 'Mulai Latihan Napas'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* TAB PESAN BOTOL */}
+            {activeTab === 'wall' && (
+              <div className="flex-1 flex flex-col bg-slate-900/50 backdrop-blur-lg border border-slate-800/80 rounded-2xl p-5 sm:p-6 min-h-[500px]">
+                <div className="mb-6">
+                  <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+                    <Icon name="heart" className="w-5 h-5 text-pink-400" /> Pesan Dalam Botol
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Kirim atau baca kata penyemangat anonim dari sesama teman introvert.
+                  </p>
+                </div>
+
+                <form onSubmit={handleAddWallNote} className="mb-6 flex gap-2">
+                  <input
+                    type="text"
+                    value={newWallNote}
+                    onChange={(e) => setNewWallNote(e.target.value)}
+                    placeholder="Tulis pesan penyemangat..."
+                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-pink-500"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!newWallNote.trim()}
+                    className="bg-gradient-to-r from-pink-500 to-rose-500 text-slate-950 font-semibold px-4 py-2.5 rounded-xl text-xs disabled:opacity-40"
+                  >
+                    Kirim
+                  </button>
+                </form>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto max-h-[50vh] pr-1">
+                  {wallNotes.map((note) => (
+                    <div
+                      key={note.id}
+                      className={`p-4 rounded-2xl border flex flex-col justify-between ${note.color}`}
+                    >
+                      <p className="text-xs text-slate-200 leading-relaxed italic">"{note.text}"</p>
+                      <div className="mt-3 text-[10px] text-slate-400 border-t border-slate-800/50 pt-2 flex justify-between">
+                        <span>{note.author}</span>
+                        <Icon name="heart" className="w-3 h-3 text-slate-500" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+          </main>
+
+          {/* Footer */}
+          <footer className="relative z-10 border-t border-slate-800/80 bg-slate-950/80 px-4 py-3 text-center text-xs text-slate-500 flex flex-wrap items-center justify-between max-w-4xl mx-auto w-full">
+            <span className="flex items-center gap-1.5">
+              <Icon name="lock" className="w-3.5 h-3.5 text-teal-400" /> Sistem Konseling BK Anonim
+            </span>
+            <span className="text-[11px]">Aman, rahasia, dan khusus buat kamu yang tenang.</span>
+          </footer>
+
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
